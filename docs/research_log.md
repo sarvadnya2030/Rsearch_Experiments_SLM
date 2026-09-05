@@ -44,4 +44,16 @@ Plus two behavioral patterns from the smoke test: **degenerate repetition loops*
 
 **Interpretation:** these four failure types (plus the two behavioral patterns) give an evidence-based basis for later reasoning-format experiments, rather than guessing in advance what a small model's failures look like.
 
+### Finding 3 — Is the 512-token cap truncating genuine reasoning, or just rambling?
+
+**Prediction:** since 512 median-length responses were hitting the generation cap, raising `max_new_tokens` might reveal reasoning that's currently being cut off before it converges.
+
+**What we checked:** of the 62/100 capped responses, 57 already contained an explicit "the answer is N" phrase somewhere within the 512 tokens — the model had already answered, then kept rambling (harmless, already handled by Finding 1's fix). Only 5 had no answer phrase at all. Reading those 5 directly: all five are degenerate, non-convergent (repeated identical arithmetic sentences, or an ever-diverging numeric drift) — none show signs of being *about to* reach an answer with more room.
+
+**Result:** raising the token cap would not have changed any of these 100 outcomes. The failure mode is the model not stopping, not the model needing more space to think.
+
+**Fix applied anyway (unrelated to the cap size):** the extraction pipeline was silently treating a bare trailing number from those 5 degenerate cases as if it were a real prediction (e.g. extracting "10" from a repetition loop that never stated an answer). Added `extraction_method` (`phrase` vs `fallback` vs `none`) and a `termination_status` label (`stopped_with_answer` / `stopped_no_answer` / `capped_with_answer` / `capped_no_answer`) to every record. A fallback match is now only trusted when the model stopped on its own; a fallback match from a response that was truncated at the cap is treated as `capped_no_answer` — no coherent answer — rather than a wrong guess. Reprocessing the existing 100-example run changed 5 predictions (accuracy unchanged at 53/100, since those 5 were already wrong either way) and produced a clean termination breakdown: 38 `stopped_with_answer`, 57 `capped_with_answer`, 5 `capped_no_answer`.
+
+**Decision:** keep `max_new_tokens=512` for the full 1319-example run. `hit_max_new_tokens` and `termination_status` are now logged per-example, so if the full run's distribution looks different from this 100-example sample, that will be visible in the data rather than assumed.
+
 **Status:** full 1319-example test-set run not yet executed (~6.7 hours at current per-example rate at batch_size=1).

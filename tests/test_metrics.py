@@ -8,13 +8,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.evaluation.metrics import compute_metrics
 
 
-def make_record(is_correct, response_tokens, generation_time=1.0, tokens_per_second=10.0):
-    return {
+def make_record(is_correct, response_tokens, generation_time=1.0, tokens_per_second=10.0, termination_status=None):
+    record = {
         "is_correct": is_correct,
         "response_tokens": response_tokens,
         "generation_time": generation_time,
         "tokens_per_second": tokens_per_second,
     }
+    if termination_status is not None:
+        record["termination_status"] = termination_status
+    return record
 
 
 class TestComputeMetrics:
@@ -84,3 +87,22 @@ class TestComputeMetrics:
         records = [make_record(True, 50, tokens_per_second=10.0), make_record(True, 50, tokens_per_second=20.0)]
         m = compute_metrics(records)
         assert m.avg_tokens_per_second == 15.0
+
+    def test_termination_status_counts(self):
+        records = [
+            make_record(True, 50, termination_status="stopped_with_answer"),
+            make_record(True, 50, termination_status="capped_with_answer"),
+            make_record(False, 50, termination_status="capped_no_answer"),
+            make_record(False, 50, termination_status="capped_no_answer"),
+        ]
+        m = compute_metrics(records)
+        assert m.termination_status_counts == {
+            "stopped_with_answer": 1,
+            "capped_with_answer": 1,
+            "capped_no_answer": 2,
+        }
+
+    def test_termination_status_missing_counts_as_unknown(self):
+        records = [make_record(True, 50), make_record(False, 50)]
+        m = compute_metrics(records)
+        assert m.termination_status_counts == {"unknown": 2}

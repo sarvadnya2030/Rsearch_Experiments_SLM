@@ -21,7 +21,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from src.data.gsm8k import build_completion_prompt, load_gsm8k_test, to_examples
-from src.evaluation.answer_extraction import extract_predicted_answer, is_correct
+from src.evaluation.answer_extraction import extract_final_answer, is_correct
 from src.evaluation.error_analysis import write_errors_jsonl
 from src.evaluation.metrics import compute_metrics
 from src.inference.generate import Generator
@@ -93,8 +93,8 @@ def main():
             prompt = build_completion_prompt(ex.question)
             result = generator.generate(prompt)
 
-            extracted = extract_predicted_answer(result.response_text)
-            correct = is_correct(extracted, ex.reference_answer)
+            extraction = extract_final_answer(result.response_text, result.hit_max_new_tokens)
+            correct = is_correct(extraction["extracted_answer"], ex.reference_answer)
 
             record = {
                 "example_id": ex.example_id,
@@ -102,11 +102,15 @@ def main():
                 "reference_solution": ex.reference_solution,
                 "reference_answer": ex.reference_answer,
                 "model_response": result.response_text,
-                "extracted_answer": extracted,
+                "raw_extracted_answer": extraction["raw_extracted_answer"],
+                "extraction_method": extraction["extraction_method"],
+                "extracted_answer": extraction["extracted_answer"],
+                "termination_status": extraction["termination_status"],
                 "is_correct": correct,
                 "prompt_tokens": result.prompt_tokens,
                 "response_tokens": result.response_tokens,
                 "total_tokens": result.total_tokens,
+                "hit_max_new_tokens": result.hit_max_new_tokens,
                 "generation_time": result.generation_time,
                 "tokens_per_second": result.tokens_per_second,
                 "model_name": config["model_name"],
@@ -127,7 +131,8 @@ def main():
             status = "OK " if correct else "ERR"
             logger.info(
                 f"[{ex.example_id + 1}/{len(examples)}] {status} "
-                f"pred={extracted} ref={ex.reference_answer} "
+                f"pred={extraction['extracted_answer']} ref={ex.reference_answer} "
+                f"[{extraction['termination_status']}] "
                 f"({result.response_tokens} tok, {result.tokens_per_second:.1f} tok/s)"
             )
 

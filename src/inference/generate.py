@@ -22,6 +22,7 @@ class GenerationResult:
     total_tokens: int
     generation_time: float
     tokens_per_second: float
+    hit_max_new_tokens: bool
 
 
 class Generator:
@@ -87,4 +88,5 @@ class Generator:
             total_tokens=total_tokens,
             generation_time=elapsed,
             tokens_per_second=(response_tokens / elapsed) if elapsed > 0 else 0.0,
+            hit_max_new_tokens=response_tokens >= self.max_new_tokens,
         )

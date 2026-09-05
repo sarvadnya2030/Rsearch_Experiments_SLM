@@ -3,7 +3,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from src.evaluation.answer_extraction import extract_predicted_answer, is_correct, normalize_number
+from src.evaluation.answer_extraction import (
+    extract_final_answer,
+    extract_predicted_answer,
+    extract_predicted_answer_with_method,
+    is_correct,
+    normalize_number,
+)
 
 
 class TestNormalizeNumber:
@@ -130,3 +136,73 @@ class TestIsCorrect:
 
     def test_both_none(self):
         assert is_correct(None, None) is False
+
+
+class TestExtractPredictedAnswerWithMethod:
+    def test_phrase_match_reports_phrase(self):
+        answer, method = extract_predicted_answer_with_method("The answer is 42.")
+        assert answer == "42"
+        assert method == "phrase"
+
+    def test_fallback_match_reports_fallback(self):
+        answer, method = extract_predicted_answer_with_method("She has 16 eggs and sells 9 of them for 18")
+        assert answer == "18"
+        assert method == "fallback"
+
+    def test_no_number_reports_none(self):
+        answer, method = extract_predicted_answer_with_method("I don't know.")
+        assert answer is None
+        assert method == "none"
+
+
+class TestExtractFinalAnswer:
+    def test_stopped_with_answer(self):
+        result = extract_final_answer("The answer is 42.", hit_max_new_tokens=False)
+        assert result["extracted_answer"] == "42"
+        assert result["extraction_method"] == "phrase"
+        assert result["termination_status"] == "stopped_with_answer"
+
+    def test_capped_with_answer_still_trusted(self):
+        # Model answered explicitly, then kept rambling until the cap —
+        # the phrase-based answer is still trustworthy.
+        text = "The answer is 42. " + ("more rambling text " * 50)
+        result = extract_final_answer(text, hit_max_new_tokens=True)
+        assert result["extracted_answer"] == "42"
+        assert result["extraction_method"] == "phrase"
+        assert result["termination_status"] == "capped_with_answer"
+
+    def test_capped_fallback_number_is_not_trusted(self):
+        # Real example from a degenerate repetition loop (exp00 run
+        # 20260905_183615, example 7): no answer phrase anywhere, just a
+        # stray trailing number from mid-loop arithmetic. Must NOT be
+        # treated as a genuine answer.
+        text = (
+            "200 / 2 = 100 GB downloaded. 100 * 2 = 200 GB downloaded. "
+            "200 - 200 = 0 GB downloaded. 200 / 2 = 100 GB downloaded. "
+            "100 * 2 = 200 GB downloaded. 200 - 200 = 0 GB downloaded. 10"
+        )
+        result = extract_final_answer(text, hit_max_new_tokens=True)
+        assert result["raw_extracted_answer"] == "10"  # what fallback found, preserved for transparency
+        assert result["extraction_method"] == "fallback"
+        assert result["extracted_answer"] is None  # NOT trusted as authoritative
+        assert result["termination_status"] == "capped_no_answer"
+
+    def test_capped_no_number_at_all(self):
+        text = "I am thinking about this problem carefully " * 30
+        result = extract_final_answer(text, hit_max_new_tokens=True)
+        assert result["extracted_answer"] is None
+        assert result["termination_status"] == "capped_no_answer"
+
+    def test_stopped_fallback_is_trusted(self):
+        # Model stopped on its own (no cap hit) with a bare trailing
+        # number and no explicit phrase — this IS trusted, since short
+        # natural completions sometimes end this way.
+        result = extract_final_answer("She has 16 eggs and sells 9 of them for 18", hit_max_new_tokens=False)
+        assert result["extracted_answer"] == "18"
+        assert result["extraction_method"] == "fallback"
+        assert result["termination_status"] == "stopped_with_answer"
+
+    def test_stopped_no_answer_at_all(self):
+        result = extract_final_answer("I don't know.", hit_max_new_tokens=False)
+        assert result["extracted_answer"] is None
+        assert result["termination_status"] == "stopped_no_answer"

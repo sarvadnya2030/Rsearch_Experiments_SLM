@@ -36,6 +36,7 @@ class AggregateMetrics:
     avg_generation_time: float
     avg_tokens_per_second: float
     accuracy_by_length_bucket: dict = field(default_factory=dict)
+    termination_status_counts: dict = field(default_factory=dict)
 
     def to_dict(self) -> dict:
         return {
@@ -49,6 +50,7 @@ class AggregateMetrics:
             "avg_generation_time": self.avg_generation_time,
             "avg_tokens_per_second": self.avg_tokens_per_second,
             "accuracy_by_length_bucket": self.accuracy_by_length_bucket,
+            "termination_status_counts": self.termination_status_counts,
         }
 
 
@@ -86,6 +88,16 @@ def compute_metrics(records: list[dict]) -> AggregateMetrics:
         else:
             bucket_stats[label] = {"count": 0, "correct": 0, "accuracy": None}
 
+    # Distinguishes: stopped naturally with an answer, stopped naturally
+    # with no coherent answer, hit the token cap after already answering
+    # (harmless rambling), and hit the cap with no coherent answer at all
+    # (degenerate loop / non-convergent — see docs/research_log.md).
+    # Older records without this field are counted as "unknown".
+    status_counts: dict[str, int] = {}
+    for r in records:
+        status = r.get("termination_status", "unknown")
+        status_counts[status] = status_counts.get(status, 0) + 1
+
     return AggregateMetrics(
         total_examples=total,
         correct=correct,
@@ -97,4 +109,5 @@ def compute_metrics(records: list[dict]) -> AggregateMetrics:
         avg_generation_time=statistics.mean(gen_times),
         avg_tokens_per_second=statistics.mean(tps),
         accuracy_by_length_bucket=bucket_stats,
+        termination_status_counts=status_counts,
     )
