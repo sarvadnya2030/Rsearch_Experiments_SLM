@@ -42,14 +42,6 @@ Plus two behavioral patterns from the smoke test: **degenerate repetition loops*
 
 **Length-cap observation (descriptive only, not causal):** 70% of incorrect answers hit the 512-token generation cap, vs. 55% of correct answers. A real but modest gap — hitting the cap is common regardless of correctness, mostly explained by the rambling/hallucination behavior above rather than the model needing more room to actually solve the problem.
 
-**Interpretation / what this sets up:** these four failure types (plus the two behavioral patterns) become the evidence-based lens for Stage 5's reasoning-format ablation — e.g. if "missed constraint" and "misapplied percentage" errors dominate, that's a specific argument for why *explicit, verbose* reasoning traces might matter more than concise ones for this model, which is exactly the kind of hypothesis the ablation study (full CoT / concise / symbolic / no-verification / no-reflection / answer-only / randomized-length control) is designed to test rather than assume.
+**Interpretation:** these four failure types (plus the two behavioral patterns) give an evidence-based basis for later reasoning-format experiments, rather than guessing in advance what a small model's failures look like.
 
-**Status:** full 1319-example test-set run not yet executed (~6.7 hours at current per-example rate at batch_size=1 — Track B's batching work is directly relevant to speeding this up before committing to it).
-
----
-
-## Project structure note
-
-This project runs two parallel tracks:
-- **Track A — reasoning research**: what kind of reasoning supervision actually helps a small model learn to reason (the entries above). See `research-plan.md` in the project's private working notes for the full staged plan; this file mirrors findings, not the full planning detail.
-- **Track B — inference engineering**: benchmarking Qwen3-0.6B serving across HF Transformers, vLLM, and quantized GGUF/llama.cpp backends, reusing Track A's own evaluation code to check accuracy parity alongside speed. See `theory/14_inference_serving.md` and `experiments/expB1_inference_benchmark/README.md`. Not yet started as of this entry.
+**Status:** full 1319-example test-set run not yet executed (~6.7 hours at current per-example rate at batch_size=1).
