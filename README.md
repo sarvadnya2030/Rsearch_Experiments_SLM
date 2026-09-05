@@ -12,8 +12,8 @@ Currently: Experiment 0 — observing Qwen3-0.6B-Base's untrained baseline behav
 |---|---|---|---|
 | Smoke test (before fix) | 10 | 0% | Extraction bug — see log |
 | Smoke test (after fix) | 10 | 40% | |
-| Baseline run | 100 | **53%** | 4 distinct failure types identified from manual review |
-| Full test set | 1319 | pending | ~6.7h at current per-example rate (batch_size=1) |
+| Baseline run | 100 | 53% | 4 distinct failure types identified from manual review |
+| Full test set | **1319** | **52.16%** (95% CI: 49.5–54.9%) | Anchor baseline for Qwen3-0.6B-Base zero-shot on GSM8K |
 
 See [`docs/research_log.md`](docs/research_log.md) for the actual findings behind these numbers — including a real bug we caught by reading raw traces instead of trusting an aggregate metric, and the four qualitatively distinct reasoning-failure types found in manual review.
 

@@ -56,4 +56,12 @@ Plus two behavioral patterns from the smoke test: **degenerate repetition loops*
 
 **Decision:** keep `max_new_tokens=512` for the full 1319-example run. `hit_max_new_tokens` and `termination_status` are now logged per-example, so if the full run's distribution looks different from this 100-example sample, that will be visible in the data rather than assumed.
 
-**Status:** full 1319-example test-set run not yet executed (~6.7 hours at current per-example rate at batch_size=1).
+### Finding 4 — Full 1319-example run confirms the 100-example sample
+
+**Prediction:** the 100-example sample (53% accuracy, 57%/38%/5% termination split) should be a reasonable predictor of the full test set, within its ±5% confidence interval.
+
+**Result:** 688/1319 correct = **52.16% accuracy** (95% CI: 49.46%–54.86%). Termination status: `capped_with_answer` 785 (59.5%), `stopped_with_answer` 487 (36.9%), `capped_no_answer` 47 (3.6%), zero `stopped_no_answer`. Avg 17.77s/example, 26.84 tok/s.
+
+**Interpretation:** the full run lands squarely inside the 100-example sample's confidence interval, and the termination-status proportions match closely (57%/38%/5% predicted vs. 59.5%/36.9%/3.6% actual). The smaller sample generalized well — this is now the anchor baseline number (52.16% ± 2.7%) for Qwen3-0.6B-Base zero-shot on GSM8K, to compare every later post-training stage against. The 47 `capped_no_answer` cases are candidates for a targeted rerun under a higher token budget (`scripts/rerun_capped.py`) to confirm at full scale that a larger cap wouldn't help — not yet run.
+
+**Status:** Experiment 0's baseline-observation objective is complete. Remaining before moving to the next stage: manually review a larger sample of the 631 total errors to solidify the failure taxonomy (currently based on a handful of manually-reviewed examples), and run the calibration/entropy check.

@@ -1,0 +1,39 @@
+# Experiment 0 — model-comparison smoke test
+# Qwen3.5-0.8B-Base on GSM8K test split, no training, pure inference.
+#
+# NOTE: Qwen3.5-0.8B-Base is architecturally very different from
+# Qwen3-0.6B-Base, not just a size bump: it's Qwen3_5ForConditionalGeneration
+# (a multimodal, vision+video capable model), built on a hybrid
+# linear-attention/SSM architecture where only every 4th layer is regular
+# full attention (the rest are Mamba-style linear-attention layers), and
+# has a much larger vocab (248,320 vs 151,936). AutoModelForCausalLM maps
+# it to the text-only Qwen3_5ForCausalLM head, so our existing generation
+# code works unmodified for this text-only comparison, but any accuracy
+# difference vs Qwen3-0.6B-Base reflects a different architecture family
+# and training pipeline entirely, not just "a slightly bigger model."
+
+model_name: "Qwen/Qwen3.5-0.8B-Base"   # exact HF repo id, do NOT substitute -Instruct/-VL
+
+dataset_name: "openai/gsm8k"
+dataset_config: "main"
+split: "test"
+
+# Generation — identical to exp00_baseline.yaml for a fair comparison
+max_new_tokens: 512
+temperature: 1.0
+top_p: 1.0
+do_sample: false
+
+batch_size: 1
+seed: 42
+
+output_directory: "results/exp00_qwen3.5_0.8b_comparison"
+
+# Prompting — same reasoning as exp00_baseline.yaml: tokenizer_config
+# ships a chat_template, but this is the true Base checkpoint (no
+# standalone chat_template.jinja file, unlike Qwen/Qwen3.5-0.8B), so we
+# use plain completion-style prompting, not apply_chat_template.
+prompt_style: "completion"
+
+dtype: "float16"
+device: "cuda"
