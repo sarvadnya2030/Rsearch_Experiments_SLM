@@ -1,0 +1,8 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[project]
+name = "slm-reasoning-research"
+version = "0.1.0"
+description = "Studying post-training effects on reasoning in small language models — Experiment 0 baseline."
+requires-python = ">=3.10"

@@ -1,0 +1,15 @@
+# Minimal dependencies for Experiment 0 (baseline inference only).
+# Versions pinned to what was verified installed/working in this environment.
+
+torch==2.5.1
+transformers==5.3.0
+datasets==4.6.0
+accelerate==1.12.0
+huggingface_hub
+pyyaml
+pytest
+numpy
+
+# NOT required for Experiment 0 (kept out on purpose — no training here):
+# peft, trl — already present in this environment for later experiments,
+# not imported by any Experiment 0 code path.

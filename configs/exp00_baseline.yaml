@@ -1,0 +1,34 @@
+# Experiment 0 — baseline reasoning observation
+# Qwen3-0.6B-Base on GSM8K test split, no training, pure inference.
+
+model_name: "Qwen/Qwen3-0.6B-Base"   # exact HF repo id, do NOT substitute -Instruct
+
+dataset_name: "openai/gsm8k"
+dataset_config: "main"
+split: "test"                       # 1319 examples; never touch train split here
+
+# Generation
+max_new_tokens: 512                 # generous for multi-step arithmetic + final answer;
+                                     # smaller than the model's own default (2048) to keep
+                                     # smoke/100-example runs fast on an 8GB GPU
+temperature: 1.0                    # irrelevant when do_sample=False, kept explicit
+top_p: 1.0                          # irrelevant when do_sample=False, kept explicit
+do_sample: false                    # greedy decoding: deterministic, reproducible baseline
+
+batch_size: 1                       # start conservative; raise only after confirming
+                                     # VRAM headroom (see README VRAM notes)
+seed: 42
+
+output_directory: "results/exp00_baseline"
+
+# Prompting
+prompt_style: "completion"          # NOT apply_chat_template — Qwen3-0.6B-Base is not
+                                     # instruction-tuned even though its tokenizer_config
+                                     # ships a chat_template (inherited from the Qwen3
+                                     # family tooling). See theory/06_language_modeling.md.
+
+dtype: "float16"                    # fp16 on RTX 2070 for memory headroom; model's own
+                                     # config.json specifies bfloat16 as its native training
+                                     # dtype, but fp16 is used here for broader RTX 2070
+                                     # kernel support and lower memory vs fp32
+device: "cuda"
