@@ -15,8 +15,9 @@ temperature: 1.0                    # irrelevant when do_sample=False, kept expl
 top_p: 1.0                          # irrelevant when do_sample=False, kept explicit
 do_sample: false                    # greedy decoding: deterministic, reproducible baseline
 
-batch_size: 1                       # start conservative; raise only after confirming
-                                     # VRAM headroom (see README VRAM notes)
+batch_size: 16                      # batched generation (left-padding), raised from 1 after
+                                     # confirming VRAM headroom during eval-only runs (no
+                                     # training gradients loaded) on the 16GB A5000
 seed: 42
 
 output_directory: "results/exp00_baseline"

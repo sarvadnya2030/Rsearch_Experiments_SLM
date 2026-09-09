@@ -124,54 +124,57 @@ def main():
     generations_path = run_dir / "generations.jsonl"
     records = []
     file_mode = "a" if completed_ids else "w"
+    batch_size = config.get("batch_size", 1)
 
     with open(generations_path, file_mode) as gen_file:
-        for ex in examples:
-            prompt = build_completion_prompt(ex.question)
-            result = generator.generate(prompt)
+        for batch_start in range(0, len(examples), batch_size):
+            batch = examples[batch_start : batch_start + batch_size]
+            prompts = [build_completion_prompt(ex.question) for ex in batch]
+            results = generator.generate_batch(prompts) if batch_size > 1 else [generator.generate(prompts[0])]
 
-            extraction = extract_final_answer(result.response_text, result.hit_max_new_tokens)
-            correct = is_correct(extraction["extracted_answer"], ex.reference_answer)
+            for ex, result in zip(batch, results):
+                extraction = extract_final_answer(result.response_text, result.hit_max_new_tokens)
+                correct = is_correct(extraction["extracted_answer"], ex.reference_answer)
 
-            record = {
-                "example_id": ex.example_id,
-                "question": ex.question,
-                "reference_solution": ex.reference_solution,
-                "reference_answer": ex.reference_answer,
-                "model_response": result.response_text,
-                "raw_extracted_answer": extraction["raw_extracted_answer"],
-                "extraction_method": extraction["extraction_method"],
-                "extracted_answer": extraction["extracted_answer"],
-                "termination_status": extraction["termination_status"],
-                "is_correct": correct,
-                "prompt_tokens": result.prompt_tokens,
-                "response_tokens": result.response_tokens,
-                "total_tokens": result.total_tokens,
-                "hit_max_new_tokens": result.hit_max_new_tokens,
-                "generation_time": result.generation_time,
-                "tokens_per_second": result.tokens_per_second,
-                "model_name": config["model_name"],
-                "generation_config": {
-                    "max_new_tokens": config["max_new_tokens"],
-                    "do_sample": config["do_sample"],
-                    "temperature": config["temperature"],
-                    "top_p": config["top_p"],
-                },
-                "seed": config["seed"],
-                "timestamp": datetime.now().isoformat(),
-                "git_commit": env["git_commit"],
-            }
-            records.append(record)
-            gen_file.write(json.dumps(record) + "\n")
+                record = {
+                    "example_id": ex.example_id,
+                    "question": ex.question,
+                    "reference_solution": ex.reference_solution,
+                    "reference_answer": ex.reference_answer,
+                    "model_response": result.response_text,
+                    "raw_extracted_answer": extraction["raw_extracted_answer"],
+                    "extraction_method": extraction["extraction_method"],
+                    "extracted_answer": extraction["extracted_answer"],
+                    "termination_status": extraction["termination_status"],
+                    "is_correct": correct,
+                    "prompt_tokens": result.prompt_tokens,
+                    "response_tokens": result.response_tokens,
+                    "total_tokens": result.total_tokens,
+                    "hit_max_new_tokens": result.hit_max_new_tokens,
+                    "generation_time": result.generation_time,
+                    "tokens_per_second": result.tokens_per_second,
+                    "model_name": config["model_name"],
+                    "generation_config": {
+                        "max_new_tokens": config["max_new_tokens"],
+                        "do_sample": config["do_sample"],
+                        "temperature": config["temperature"],
+                        "top_p": config["top_p"],
+                    },
+                    "seed": config["seed"],
+                    "timestamp": datetime.now().isoformat(),
+                    "git_commit": env["git_commit"],
+                }
+                records.append(record)
+                gen_file.write(json.dumps(record) + "\n")
+
+                status = "OK " if correct else "ERR"
+                logger.info(
+                    f"[{ex.example_id + 1}/{len(examples)}] {status} "
+                    f"pred={extraction['extracted_answer']} ref={ex.reference_answer} "
+                    f"[{extraction['termination_status']}] "
+                    f"({result.response_tokens} tok, {result.tokens_per_second:.1f} tok/s)"
+                )
             gen_file.flush()
-
-            status = "OK " if correct else "ERR"
-            logger.info(
-                f"[{ex.example_id + 1}/{len(examples)}] {status} "
-                f"pred={extraction['extracted_answer']} ref={ex.reference_answer} "
-                f"[{extraction['termination_status']}] "
-                f"({result.response_tokens} tok, {result.tokens_per_second:.1f} tok/s)"
-            )
 
     # Metrics/errors must cover ALL completed examples, not just the ones
     # generated in this invocation — matters when resuming, since earlier
